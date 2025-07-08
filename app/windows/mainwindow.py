@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
 from PyQt6.QtWidgets import QWidget, QMenu
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout
-from PyQt6.QtWidgets import QLabel, QProgressBar
+from PyQt6.QtWidgets import QLabel
 from PyQt6.QtWidgets import QPushButton, QComboBox, QSpinBox
 from PyQt6.QtWidgets import QFileDialog
 
@@ -63,14 +63,6 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(status_layout)
 
-        # Progress Bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-
-        main_layout.addWidget(self.progress_bar)
-
         # Folder Layout
         folder_layout = QHBoxLayout()
 
@@ -91,7 +83,7 @@ class MainWindow(QMainWindow):
 
         self.mode_combobox = QComboBox()
         self.mode_combobox.addItems(['Обычный', 'Принудительный'])
-        self.mode_combobox.setCurrentIndex(0)
+        self.mode_combobox.setCurrentIndex(self.user_config['current_mode'])
         mode_layout.addWidget(self.mode_combobox)
 
         main_layout.addLayout(mode_layout)
@@ -103,7 +95,7 @@ class MainWindow(QMainWindow):
 
         self.interval_spinbox = QSpinBox()
         self.interval_spinbox.setRange(1, 1440)
-        self.interval_spinbox.setValue(1)
+        self.interval_spinbox.setValue(self.user_config['check_interval'])
         interval_layout.addWidget(self.interval_spinbox)
 
         main_layout.addLayout(interval_layout)
@@ -197,6 +189,29 @@ class MainWindow(QMainWindow):
         self.exit_from_app()
 
 
+    def on_auto_check_pbo_files_finished(self, result):
+        pass
+
+
+    def on_files_send_finished(self, result):
+        pass
+
+
+    def show_main_window(self):
+        """Показывает главное окно приложения."""
+
+        self.show()
+        self.activateWindow()
+        self.raise_()
+
+
+    def exit_from_app(self):
+        """Полностью закрывает приложение и убирает трэй иконку."""
+
+        self.tray_icon.hide()
+        QApplication.quit()
+
+
     def read_user_config(self):
         """Считывает данные из конфига пользователя в формате JSON."""
 
@@ -216,7 +231,6 @@ class MainWindow(QMainWindow):
 
         self.next_check_time = self.calc_next_check_time()
         self.status_label.setText('Автоматическая проверка файлов...')
-        self.progress_bar.setValue(0)
 
         # TODO: check thread
 
@@ -232,21 +246,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.status_label.setText(f'Ошибка сохранения: {str(e)}')
             # TODO: Logger
-
-
-    def show_main_window(self):
-        """Показывает главное окно приложения."""
-
-        self.show()
-        self.activateWindow()
-        self.raise_()
-
-
-    def exit_from_app(self):
-        """Полностью закрывает приложение и убирает трэй иконку."""
-
-        self.tray_icon.hide()
-        QApplication.quit()
 
 
     def show_browse_dialog(self):

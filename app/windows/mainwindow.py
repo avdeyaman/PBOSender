@@ -2,6 +2,8 @@ import json
 
 from os import getenv, path
 
+from datetime import datetime, timedelta
+
 from PyQt6.QtCore import Qt, QTimer
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
@@ -33,6 +35,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('PBO Sender')
         self.setWindowIcon(QIcon('icon.png'))
         self.setFixedSize(500, 190)
+
+        self.next_check_time = self.calc_next_check_time()
 
         self.init_ui()
         self.init_timers()
@@ -125,10 +129,6 @@ class MainWindow(QMainWindow):
     def init_timers(self):
         """Инициализирует таймеры."""
 
-        self.check_timer = QTimer()
-        self.check_timer.timeout.connect(self.on_check_timer_timeout)
-        self.check_timer.start(60 * 1000)
-
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.on_update_timer_timeout)
         self.update_timer.start(1000)
@@ -169,12 +169,20 @@ class MainWindow(QMainWindow):
         pass
 
 
-    def on_check_timer_timeout(self):
-        pass
-
-
     def on_update_timer_timeout(self):
-        pass
+        """Обработчик события, когда истек таймер обновления времени проверки."""
+
+        current_time = datetime.now()
+        if current_time >= self.next_check_time:
+            self.update_next_check_label_text('Начинается проверка...')
+            self.run_auto_check_pbo_files()
+            return
+
+        delta = self.next_check_time - current_time
+        minutes = delta.seconds // 60
+        seconds = delta.seconds % 60
+
+        self.update_next_check_label_text(f'Проверка через: {minutes}:{seconds}')
 
 
     def on_show_window_action_triggered(self):
@@ -201,6 +209,16 @@ class MainWindow(QMainWindow):
         except Exception as e:
             # TODO: logger
             return self.DEFAULT_USER_CONFIG
+
+
+    def run_auto_check_pbo_files(self):
+        """Запускает автоматическую проверку файлов .pbo."""
+
+        self.next_check_time = self.calc_next_check_time()
+        self.status_label.setText('Автоматическая проверка файлов...')
+        self.progress_bar.setValue(0)
+
+        # TODO: check thread
 
 
     def save_user_config(self):
@@ -251,3 +269,28 @@ class MainWindow(QMainWindow):
 
         self.send_button.setDisabled(True)
         self.save_config_button.setDisabled(True)
+
+
+    def update_next_check_label_text(self, text: str):
+        """Обновялет текст лэйбла таймера следующей проверки.
+
+        Parameters
+        ----------
+        text : str
+            текст
+        """
+
+        self.next_check_label.setText(text)
+
+
+    def calc_next_check_time(self) -> datetime:
+        """Расчитывает и возвращает время следующей проверки файлов.
+
+        Returns
+        -------
+        datetime
+            время следующей проверки
+        """
+
+        check_interval_minutes = self.user_config['check_interval']
+        return datetime.now() + timedelta(minutes=check_interval_minutes)

@@ -116,7 +116,8 @@ class SenderThread(QThread):
         send_tasks = []
 
         for file_data in files_data:
-            send_task = self.send_file(session, self.files_hash.get(file_data['file_name']), file_data['path'])
+            file_hash = self.files_hash.get(file_data['file_name'])
+            send_task = self.send_file(session, f'SHA256: {file_hash}', file_data['path'])
             send_tasks.append(send_task)
             self.status_changed.emit(f'Отправка {file_data['file_name']}...')
             await asyncio.sleep(0.3)

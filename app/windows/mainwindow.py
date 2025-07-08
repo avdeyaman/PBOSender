@@ -32,7 +32,6 @@ class MainWindow(QMainWindow):
             'target_files_prefix': 'UTF',
             'max_file_size_mb': 8,
             'current_mode': 0,
-            'fixed_delay': 0.3,
             'check_interval': 60
         }
 
@@ -92,6 +91,7 @@ class MainWindow(QMainWindow):
         self.mode_combobox = QComboBox()
         self.mode_combobox.addItems(['Обычный', 'Принудительный'])
         self.mode_combobox.setCurrentIndex(self.user_config['current_mode'])
+        self.mode_combobox.currentIndexChanged.connect(self.on_mode_combobox_current_index_changed)
         mode_layout.addWidget(self.mode_combobox)
 
         main_layout.addLayout(mode_layout)
@@ -104,6 +104,7 @@ class MainWindow(QMainWindow):
         self.interval_spinbox = QSpinBox()
         self.interval_spinbox.setRange(1, 1440)
         self.interval_spinbox.setValue(self.user_config['check_interval'])
+        self.interval_spinbox.valueChanged.connect(self.on_interval_spin_box_value_changed)
         interval_layout.addWidget(self.interval_spinbox)
 
         main_layout.addLayout(interval_layout)
@@ -177,6 +178,30 @@ class MainWindow(QMainWindow):
 
     def on_send_button_clicked(self):
         pass
+
+
+    def on_mode_combobox_current_index_changed(self, index: int):
+        """Обработчик события, когда изменён текущий индекс режима.
+
+        Parameters
+        ----------
+        index : int
+            новый индекс
+        """
+
+        self.user_config['current_mode'] = index
+
+
+    def on_interval_spin_box_value_changed(self, value: int):
+        """Обработчик события, когда изменёно значение интервала.
+
+        Parameters
+        ----------
+        value : int
+            новое значение
+        """
+
+        self.user_config['check_interval'] = value
 
 
     def on_update_timer_timeout(self):

@@ -11,3 +11,6 @@ aiohttp = "*"
 
 [requires]
 python_version = "3.13"
+
+[scripts]
+main = "python main.py"

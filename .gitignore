@@ -173,5 +173,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Config
+# Config and hash
 pbo_sender.json
+pbo_sender_files_hash.json

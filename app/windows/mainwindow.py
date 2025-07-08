@@ -17,8 +17,12 @@ from PyQt6.QtWidgets import QFileDialog
 
 from PyQt6.QtGui import QIcon
 
+from app.senderthread import SenderThread
+
 
 class MainWindow(QMainWindow):
+    """Главное окно приложения. Наследует <code>QMainWindow</code>."""
+
     def __init__(self):
         super().__init__()
 
@@ -177,7 +181,13 @@ class MainWindow(QMainWindow):
 
 
     def on_send_button_clicked(self):
-        pass
+        """Обработчик события, когда нажата кнопка отправки."""
+
+        self.disable_buttons()
+        self.sender_thread = SenderThread(self.user_config)
+        self.sender_thread.finished.connect(self.on_files_send_finished)
+        self.sender_thread.status_changed.connect(self.on_status_changed)
+        self.sender_thread.start()
 
 
     def on_mode_combobox_current_index_changed(self, index: int):
@@ -237,7 +247,17 @@ class MainWindow(QMainWindow):
 
 
     def on_files_send_finished(self, result):
-        pass
+        """"""
+
+        # TODO
+        self.status_label.setText(result['message'])
+        self.enable_buttons()
+
+
+    def on_status_changed(self, message):
+        """Обработчик события, когда статус отправки изменён."""
+
+        self.status_label.setText(message)
 
 
     def show_main_window(self):
@@ -267,7 +287,9 @@ class MainWindow(QMainWindow):
         self.next_check_time = self.calc_next_check_time()
         self.status_label.setText('Автоматическая проверка файлов...')
 
-        # TODO: check thread
+        self.auto_check_thread = SenderThread(self.user_config)
+        self.auto_check_thread.finished.connect(self.on_files_send_finished)
+        self.auto_check_thread.start()
 
 
     def read_user_config(self):

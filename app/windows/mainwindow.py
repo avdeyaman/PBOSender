@@ -1,5 +1,7 @@
 import json
 
+import app.logger as logger
+
 from os import getenv, path
 
 from datetime import datetime, timedelta
@@ -19,6 +21,10 @@ from PyQt6.QtGui import QIcon
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        self.logger = logger.setup_logging(__name__)
+
+        self.logger.info('---- ПРИЛОЖЕНИЕ ЗАПУЩЕНО ----')
 
         self.CONFIG_FILE_PATH = 'pbo_sender.json'
         self.DEFAULT_USER_CONFIG = {
@@ -45,6 +51,8 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """Инициализирует элементы интерфейса."""
+
+        self.logger.info('Инициализация элементов интерфейса...')
 
         main_widget = QWidget()
 
@@ -117,17 +125,25 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(main_widget)
 
+        self.logger.info('Инициализация элементов интерфейса завершена')
+
 
     def init_timers(self):
         """Инициализирует таймеры."""
+
+        self.logger.info('Инициализация таймеров...')
 
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.on_update_timer_timeout)
         self.update_timer.start(1000)
 
+        self.logger.info('Инициализация таймеров завершена')
+
 
     def init_system_tray(self):
         """Инициализирует трэй иконку."""
+
+        self.logger.info('Инициализация иконки в трэе...')
 
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon('icon.png'))
@@ -141,6 +157,8 @@ class MainWindow(QMainWindow):
 
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
+
+        self.logger.info('Инициализация иконки в трэе завершена')
 
 
     def on_browse_button_clicked(self):
@@ -200,6 +218,8 @@ class MainWindow(QMainWindow):
     def show_main_window(self):
         """Показывает главное окно приложения."""
 
+        self.logger.info('Показ главного окна')
+
         self.show()
         self.activateWindow()
         self.raise_()
@@ -208,26 +228,16 @@ class MainWindow(QMainWindow):
     def exit_from_app(self):
         """Полностью закрывает приложение и убирает трэй иконку."""
 
+        self.logger.info('Выход из приложения...')
+
         self.tray_icon.hide()
         QApplication.quit()
 
 
-    def read_user_config(self):
-        """Считывает данные из конфига пользователя в формате JSON."""
-
-        try:
-            if not path.exists(self.CONFIG_FILE_PATH):
-                return self.DEFAULT_USER_CONFIG
-
-            with open(self.CONFIG_FILE_PATH, 'r', encoding='utf-8') as config_file:
-                return json.load(config_file)
-        except Exception as e:
-            # TODO: logger
-            return self.DEFAULT_USER_CONFIG
-
-
     def run_auto_check_pbo_files(self):
         """Запускает автоматическую проверку файлов .pbo."""
+
+        self.logger.info('Запущена автоматическая проверка файлов .pbo')
 
         self.next_check_time = self.calc_next_check_time()
         self.status_label.setText('Автоматическая проверка файлов...')
@@ -235,25 +245,49 @@ class MainWindow(QMainWindow):
         # TODO: check thread
 
 
+    def read_user_config(self):
+        """Считывает данные из конфига пользователя в формате JSON."""
+
+        self.logger.info('Чтение файла конфигурации...')
+
+        try:
+            if not path.exists(self.CONFIG_FILE_PATH):
+                self.logger.warning('Файл конфигурации отсутствует')
+                return self.DEFAULT_USER_CONFIG
+
+            with open(self.CONFIG_FILE_PATH, 'r', encoding='utf-8') as config_file:
+                self.logger.info('Файл конфигурации считан')
+                return json.load(config_file)
+        except Exception as e:
+            self.logger.error(f'Ошибка при чтении файла конфигурации! Будет загружена стандартная конфигурация. Ошибка:\n{str(e)}')
+            return self.DEFAULT_USER_CONFIG
+
+
     def save_user_config(self):
         """Записывает данные в файл конфига в формате JSON."""
+
+        self.logger.info('Сохранение файла конфигруации...')
 
         try:
             with open(self.CONFIG_FILE_PATH, 'w', encoding='utf-8') as config_file:
                 json.dump(self.user_config, config_file, indent=2, ensure_ascii=False)
 
-            self.status_label.setText('Настройки сохранены')
+            self.status_label.setText('Конфигруация сохранена')
+            self.logger.info('Файл конфигурации сохранён')
         except Exception as e:
-            self.status_label.setText(f'Ошибка сохранения: {str(e)}')
-            # TODO: Logger
+            self.status_label.setText('Ошибка сохранения. Детали в файле .log')
+            self.logger.info(f'Ошибка при сохранении файла конфигурации! Ошибка:\n{str(e)}')
 
 
     def show_browse_dialog(self):
         """Показывает диалог выбора папки с файлами .pbo миссий."""
 
+        self.logger.info('Запуск выбора папки с файлами .pbo миссий')
+
         folder = QFileDialog.getExistingDirectory(self, 'Выберите папку с файлами .pbo миссий', self.user_config['search_folder'])
         if folder:
             self.folder_label.setText(f'Папка для проверки: {folder}')
+            self.logger.info(f'Папка с файлами .pbo миссий выбрана. Путь: {folder}')
 
 
     def enable_buttons(self):
@@ -262,12 +296,16 @@ class MainWindow(QMainWindow):
         self.send_button.setDisabled(False)
         self.save_config_button.setDisabled(False)
 
+        self.logger.info('Все кнопки включены')
+
 
     def disable_buttons(self):
         """Выключает все кнопки."""
 
         self.send_button.setDisabled(True)
         self.save_config_button.setDisabled(True)
+
+        self.logger.info('Все кнопки выключены')
 
 
     def update_next_check_label_text(self, text: str):

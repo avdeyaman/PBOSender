@@ -195,11 +195,9 @@ class SenderThread(QThread):
             with open(self.HASH_FILE_PATH, 'w', encoding='utf-8') as hash_file:
                 json.dump(self.files_hash, hash_file, indent=2, ensure_ascii=False)
 
-            self.status_label.setText('Хэш файлов сохранён')
             self.logger.info('Хэш файлов сохранён')
         except Exception as e:
             self.status_label.setText('Ошибка сохранения хэшей. Детали в файле .log')
-            self.logger.info(f'Ошибка при сохранении файла хэшей! Ошибка:\n{str(e)}')
 
 
     def get_all_files(self) -> list[str]:
@@ -336,7 +334,7 @@ class SenderThread(QThread):
                 continue
 
             zip_file_name: str = f'{file_name}.zip'
-            zip_file_path: str = f'{path.dirname(__file__)}\\{zip_file_name}'
+            zip_file_path: str = str(Path(SEARCH_FOLDER_PATH) / zip_file_name)
 
             zip_result_path = self.zip_file(file_path, zip_file_path)
             if not zip_result_path:

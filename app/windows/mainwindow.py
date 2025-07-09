@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         self.user_config = self.read_user_config()
 
         self.setWindowTitle('PBO Sender')
-        self.setWindowIcon(QIcon('icon.png'))
+        self.setWindowIcon(QIcon('favicon.ico'))
         self.setFixedSize(500, 170)
 
         self.next_check_time = self.calc_next_check_time()
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
         self.logger.info('Инициализация иконки в трэе...')
 
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('icon.png'))
+        self.tray_icon.setIcon(QIcon('favicon.ico'))
 
         tray_menu = QMenu()
         show_window_action = tray_menu.addAction('Показать')
@@ -165,6 +165,10 @@ class MainWindow(QMainWindow):
 
         self.logger.info('Инициализация иконки в трэе завершена')
 
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage('PBOSender', 'Приложение свёрнуто в трэй и будет работать в фоне', QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def on_browse_button_clicked(self):
         """Обработчик события, когда нажата кнопка выбора папки для поиска."""

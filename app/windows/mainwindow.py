@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QSystemTrayIcon
 from PyQt6.QtWidgets import QWidget, QMenu
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt6.QtWidgets import QLabel
-from PyQt6.QtWidgets import QPushButton, QComboBox, QSpinBox
+from PyQt6.QtWidgets import QPushButton, QSpinBox, QLineEdit
 from PyQt6.QtWidgets import QFileDialog
 
 from PyQt6.QtGui import QIcon
@@ -32,10 +32,10 @@ class MainWindow(QMainWindow):
 
         self.CONFIG_FILE_PATH = 'pbo_sender.json'
         self.DEFAULT_USER_CONFIG = {
+            'webhook_url': '',
             'search_folder': f'{getenv('LOCALAPPDATA')}\\Arma 3\\MPMissionsCache',
             'target_files_prefix': 'UTF',
             'max_file_size_mb': 8,
-            'current_mode': 0,
             'check_interval': 60
         }
 
@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle('PBO Sender')
         self.setWindowIcon(QIcon('icon.png'))
-        self.setFixedSize(500, 190)
+        self.setFixedSize(500, 170)
 
         self.next_check_time = self.calc_next_check_time()
 
@@ -87,18 +87,18 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(folder_layout)
 
-        # Mode Layout
-        mode_layout = QHBoxLayout()
+        # Webhook Layout
+        webhook_layout = QHBoxLayout()
 
-        mode_layout.addWidget(QLabel('Режим работы:'))
+        webhook_layout.addWidget(QLabel('Webhook URL:'))
 
-        self.mode_combobox = QComboBox()
-        self.mode_combobox.addItems(['Обычный', 'Принудительный'])
-        self.mode_combobox.setCurrentIndex(self.user_config['current_mode'])
-        self.mode_combobox.currentIndexChanged.connect(self.on_mode_combobox_current_index_changed)
-        mode_layout.addWidget(self.mode_combobox)
+        self.webhook_lineedit = QLineEdit()
+        self.webhook_lineedit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.webhook_lineedit.setText(self.user_config['webhook_url'])
+        self.webhook_lineedit.textChanged.connect(self.on_webhook_lineedit_text_changed)
+        webhook_layout.addWidget(self.webhook_lineedit)
 
-        main_layout.addLayout(mode_layout)
+        main_layout.addLayout(webhook_layout)
 
         # Interval Layout
         interval_layout = QHBoxLayout()
@@ -190,16 +190,11 @@ class MainWindow(QMainWindow):
         self.sender_thread.start()
 
 
-    def on_mode_combobox_current_index_changed(self, index: int):
-        """Обработчик события, когда изменён текущий индекс режима.
+    def on_webhook_lineedit_text_changed(self):
+        """Обработчик события, когда изменен текст поля ввода Webhook."""
 
-        Parameters
-        ----------
-        index : int
-            новый индекс
-        """
-
-        self.user_config['current_mode'] = index
+        text: str = self.webhook_lineedit.text()
+        self.user_config['webhook_url'] = text
 
 
     def on_interval_spin_box_value_changed(self, value: int):

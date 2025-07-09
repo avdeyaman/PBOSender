@@ -143,8 +143,7 @@ class SenderThread(QThread):
             True если отправлено успешно, иначе False
         """
 
-        WEBHOOK_URL = getenv('DISCORD_FILES_WEBHOOK_URL')
-
+        webhook_url = self.user_config['webhook_url']
         file_name = path.basename(file_path)
         opened_file = open(file_path, 'rb')
 
@@ -154,7 +153,7 @@ class SenderThread(QThread):
         }
 
         try:
-            async with session.post(WEBHOOK_URL, data=data) as response:
+            async with session.post(webhook_url, data=data) as response:
                 if response.status != 200:
                     self.logger.error(f'Ошибка {response.status} при отправке файла {file_name}. Ответ:\n{await response.text()}')
                     return False

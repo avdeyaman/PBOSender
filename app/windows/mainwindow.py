@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt6.QtWidgets import QLabel
 from PyQt6.QtWidgets import QPushButton, QSpinBox, QLineEdit
 from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtCore import QSysInfo
+from PyQt6.QtGui import QIcon
 
 from PyQt6.QtGui import QIcon
 
@@ -43,7 +45,10 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle('PBO Sender')
         self.setWindowIcon(QIcon('favicon.ico'))
-        self.setFixedSize(500, 170)
+        if QSysInfo.productType() == 'macos':
+            self.setFixedSize(500, 220)  # Для macOS
+        else:
+            self.setFixedSize(500, 170)  # Для Windows и других ОС
 
         self.next_check_time = self.calc_next_check_time()
 

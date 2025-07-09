@@ -116,11 +116,18 @@ class SenderThread(QThread):
         send_tasks = []
 
         for file_data in files_data:
-            file_hash = self.files_hash.get(file_data['file_name'])
+            file_name: str = file_data['file_name']
+
+            if file_data['compressed_size'] > self.user_config['max_file_size_mb']:
+                self.status_changed.emit(f'Пропуск {file_name} (большой размер)')
+                self.logger.info(f'Пропуск отправки файла {file_name}. Первышает допустимый размер')
+                continue
+
+            file_hash = self.files_hash.get(file_name)
             send_task = self.send_file(session, f'SHA256: {file_hash}', file_data['path'])
             send_tasks.append(send_task)
-            self.status_changed.emit(f'Отправка {file_data['file_name']}...')
-            await asyncio.sleep(0.3)
+            self.status_changed.emit(f'Отправка {file_name}...')
+            await asyncio.sleep(0.5)
 
         await asyncio.gather(*send_tasks, return_exceptions=False)
 
@@ -339,9 +346,12 @@ class SenderThread(QThread):
             if not zip_result_path:
                 continue
 
+            compressed_size = path.getsize(zip_result_path) / (1024 * 1024)
+
             zip_file_data = {
                 'path': zip_result_path,
-                'file_name': file_name
+                'file_name': file_name,
+                'compressed_size': compressed_size
             }
 
             zip_files.append(zip_file_data)

@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pyqt6 = "*"
+aiohttp = "*"
+pyinstaller = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"
+
+[scripts]
+main = "python main.py"

@@ -33,6 +33,7 @@ class SenderThread(QThread):
         self.user_config = user_config
         self.files_hash = self.read_files_hash()
 
+
     def run(self):
         try:
             loop = asyncio.new_event_loop()
@@ -50,6 +51,7 @@ class SenderThread(QThread):
         except Exception as e:
             self.finished.emit({'successful': False, 'message': f'Критическая ошибка: {str(e)}'})
             self.logger.error(f'Критическая ошибка: {str(e)}')
+
 
     async def async_find_and_send_files(self) -> str:
         """Запускает процесс поиска и отправки файлов."""
@@ -86,6 +88,7 @@ class SenderThread(QThread):
         self.save_files_hash()
 
         return 'success'
+
 
     async def send_files(self, session, files_data: list[dict]):
         """Отправляет указанный список файлов используя Discord Webhook.
@@ -127,7 +130,7 @@ class SenderThread(QThread):
                     )
                 }]
             }
-            
+
             async with session.post(self.user_config['webhook_url'], json=admin_message) as resp:
                 if resp.status != 200:
                     self.logger.error(f"Ошибка отправки уведомления админу: {resp.status}")
@@ -135,7 +138,8 @@ class SenderThread(QThread):
         if send_tasks:  # Отправляем файлы только если есть что отправлять
             await asyncio.gather(*send_tasks, return_exceptions=False)
 
-    async def send_file(self, session, file_hash: str, file_path: str) -> bool:
+
+    async def send_file(self, session, file_path: str) -> bool:
         """Отправляет файл на сервер через Discord Webhook.
 
         Parameters
@@ -156,7 +160,7 @@ class SenderThread(QThread):
             # Получаем оригинальное имя файла (без .zip)
             zip_filename = os.path.basename(file_path)
             original_filename = zip_filename.replace('.zip', '')
-            
+
             # Получаем время изменения файла и форматируем его
             timestamp = datetime.fromtimestamp(os.path.getmtime(file_path))
             timestamp_str = timestamp.strftime('%d.%m %H:%M')  # Только день.месяц часы:минуты
@@ -177,6 +181,7 @@ class SenderThread(QThread):
             self.status_changed.emit(f"Ошибка при отправке файла {original_filename}: {str(e)}")
             return False
 
+
     def read_files_hash(self) -> dict:
         """Считывает хэш файлов из файла в формате JSON."""
         self.logger.info('Чтение хэша файлов...')
@@ -193,6 +198,7 @@ class SenderThread(QThread):
             self.logger.error(f'Ошибка при чтении файла хэшей! Ошибка:\n{str(e)}')
             return {}
 
+
     def save_files_hash(self):
         """Записывает хэш файлов в файл формата JSON."""
         self.logger.info('Сохранение хэша файлов...')
@@ -204,6 +210,7 @@ class SenderThread(QThread):
         except Exception as e:
             self.logger.error(f'Ошибка сохранения хэшей: {str(e)}')
 
+
     def get_all_files(self) -> list[str]:
         """Возвращает все файлы из указанной в конфигруации папке."""
         search_path = self.user_config['search_folder']
@@ -214,6 +221,7 @@ class SenderThread(QThread):
             break
 
         return files
+
 
     def get_files_with_prefix(self, files: list[str], prefix: str) -> list[str]:
         """Возвращает файлы с указанным префиксом и расширением .pbo"""
@@ -230,6 +238,7 @@ class SenderThread(QThread):
             pbo_files.append(file_name)
 
         return pbo_files
+
 
     def get_changed_files(self, files: list[str]) -> list[str]:
         """Находит и возвращает список изменённых файлов."""
@@ -248,10 +257,12 @@ class SenderThread(QThread):
 
         return changed_files
 
+
     def is_cur_file_equals_prev(self, current_file_path: str, prev_sha256_hash: str) -> bool:
         """Сверяет файлы используя хэш SHA256."""
         current_sha256_hash: str = self.hash_file(current_file_path)
         return current_sha256_hash == prev_sha256_hash
+
 
     def zip_files_for_send(self, files: list[str]) -> list[dict]:
         """Архивирует указанный список файлов в ZIP архивы."""
@@ -282,6 +293,7 @@ class SenderThread(QThread):
 
         return zip_files
 
+
     def zip_file(self, source_path: str, zip_path: str) -> str | None:
         """Создаёт ZIP архив с указанным файлом."""
         file_basename = path.basename(source_path)
@@ -300,6 +312,7 @@ class SenderThread(QThread):
             self.logger.error(f'Ошибка при создании ZIP архива для {file_basename}. Ошибка:\n{str(e)}')
             return None
 
+
     def hash_file(self, file_path: str) -> str:
         """Создаёт хэш SHA256 для указанного файла."""
         BUF_SIZE = 65536
@@ -313,6 +326,7 @@ class SenderThread(QThread):
                 sha256_file_hash.update(data)
 
         return sha256_file_hash.hexdigest()
+
 
     def delete_temp_zip_files(self, files_data: list[dict]):
         """Удаляет временные ZIP файлы."""

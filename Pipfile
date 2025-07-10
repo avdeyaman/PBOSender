@@ -5,8 +5,8 @@ name = "pypi"
 
 [packages]
 pyqt6 = "*"
-aiohttp = "*"
 pyinstaller = "*"
+aiohttp = "*"
 
 [dev-packages]
 

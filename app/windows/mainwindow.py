@@ -38,7 +38,8 @@ class MainWindow(QMainWindow):
             'search_folder': f'{getenv('LOCALAPPDATA')}\\Arma 3\\MPMissionsCache',
             'target_files_prefix': 'UTF',
             'max_file_size_mb': 8,
-            'check_interval': 60
+            'check_interval': 60,
+            'discord_admin_id': ''
         }
 
         self.user_config = self.read_user_config()

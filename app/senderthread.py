@@ -27,6 +27,7 @@ class SenderThread(QThread):
         user_config : dict
             конфигурация пользователя
         """
+
         super().__init__()
         self.logger = logger.setup_logging(__name__)
         self.HASH_FILE_PATH = 'pbo_sender_files_hash.json'
@@ -55,6 +56,7 @@ class SenderThread(QThread):
 
     async def async_find_and_send_files(self) -> str:
         """Запускает процесс поиска и отправки файлов."""
+
         self.logger.info('Начат процесс поиска и отправки файлов')
 
         self.logger.info('Поиск нужных файлов...')
@@ -95,14 +97,14 @@ class SenderThread(QThread):
 
         Parameters
         ----------
-        session
-            открытая сессия соединения
+        session : ClientSession
+            сессия aiohttp
         files_data : list[dict]
             список данных о файлах
         """
+
         send_tasks = []
-        admin_id = "978341248194719794"  # ID админа для упоминания
-        has_oversized_files = False
+        oversized_files = []
 
         for file_data in files_data:
             file_name: str = file_data['file_name']
@@ -110,32 +112,23 @@ class SenderThread(QThread):
             if file_data['compressed_size'] > self.user_config['max_file_size_mb']:
                 self.status_changed.emit(f'Пропуск {file_name} (большой размер)')
                 self.logger.info(f'Пропуск отправки файла {file_name}. Превышает допустимый размер')
-                has_oversized_files = True
+                oversized_files.append(file_data)
                 continue
 
             send_task = self.send_file(session, file_data['path'])
             send_tasks.append(send_task)
+
             self.status_changed.emit(f'Отправка {file_name}...')
+
             await asyncio.sleep(0.5)
 
-        if has_oversized_files:
-            # Отправляем сообщение админу только если есть слишком большие файлы
-            admin_message = {
-                "content": f"<@{admin_id}> Обнаружены файлы, превышающие максимальный размер:",
-                "embeds": [{
-                    "description": "\n".join(
-                        f"{fd['file_name']} ({fd['compressed_size']:.2f} MB)"
-                        for fd in files_data
-                        if fd['compressed_size'] > self.user_config['max_file_size_mb']
-                    )
-                }]
-            }
+        if oversized_files:
+            admin_id: str = self.user_config['discord_admin_id']
 
-            async with session.post(self.user_config['webhook_url'], json=admin_message) as resp:
-                if resp.status != 200:
-                    self.logger.error(f"Ошибка отправки уведомления админу: {resp.status}")
+            send_message_task = self.send_message_about_oversized_files(session, admin_id, oversized_files)
+            send_tasks.append(send_message_task)
 
-        if send_tasks:  # Отправляем файлы только если есть что отправлять
+        if send_tasks:
             await asyncio.gather(*send_tasks, return_exceptions=False)
 
 
@@ -146,8 +139,6 @@ class SenderThread(QThread):
         ----------
         session : ClientSession
             сессия aiohttp
-        file_hash : str
-            хэш файла
         file_path : str
             путь к файлу
 
@@ -156,34 +147,103 @@ class SenderThread(QThread):
         bool
             True если отправка успешна, иначе False
         """
+
         try:
-            # Получаем оригинальное имя файла (без .zip)
             zip_filename = os.path.basename(file_path)
             original_filename = zip_filename.replace('.zip', '')
 
-            # Получаем время изменения файла и форматируем его
             timestamp = datetime.fromtimestamp(os.path.getmtime(file_path))
-            timestamp_str = timestamp.strftime('%d.%m %H:%M')  # Только день.месяц часы:минуты
+            timestamp_str = timestamp.strftime('%d.%m %H:%M')
 
-            with open(file_path, "rb") as f:
-                form = aiohttp.FormData()
-                form.add_field("file", f, filename=zip_filename)
-                form.add_field("payload_json", json.dumps({
-                    "content": f"{original_filename} — {timestamp_str}"  # Без SHA256
-                }))
-                async with session.post(self.user_config['webhook_url'], data=form) as resp:
-                    if resp.status == 200:
-                        return True
-                    else:
-                        self.status_changed.emit(f"Ошибка при отправке {original_filename}: статус {resp.status}")
-                        return False
+            with open(file_path, "rb") as file_for_send:
+                file_message_data = self.make_message_data(
+                    text=f'{original_filename} — {timestamp_str}',
+                    opened_file=file_for_send
+                )
+
+                response: bool = await self.send_message(session, file_message_data)
+                if not response:
+                    self.status_changed.emit(f'Ошибка при отправке файла {original_filename}')
+
+                return response
         except Exception as e:
             self.status_changed.emit(f"Ошибка при отправке файла {original_filename}: {str(e)}")
             return False
 
 
+    async def send_message(self, session, message_data: dict) -> bool:
+        """Отправляет сообщение с указанными данным используя Discrod Webhook.
+
+        Parameters
+        ----------
+        session : ClientSession
+            сессия aiohttp
+        message_data : dict
+            данные сообщения
+        """
+
+        async with session.post(self.user_config['webhook_url'], data=message_data) as resp:
+            if resp.status != 200:
+                self.logger.error(f'Ошибка {resp.status} при отправке сообщения!')
+                return False
+
+            return True
+
+
+    async def send_message_about_oversized_files(self, session, admin_id: str, oversized_files: list):
+        """Отправляет сообщение о файлах, привыщающий допустимый для отправки размер.
+
+        Parameters
+        ----------
+        session : ClientSession
+            сессия aiohttp
+        admin_id : str
+            идентификатор Discord администратора
+        oversized_files : list
+            список файлов, которые при
+        """
+
+        embed_description = ''
+        for big_file in oversized_files:
+            embed_description += f'{big_file['file_name']} ({big_file['compressed_size']:.2f} MB)\n'
+
+        oversized_files_message_data = self.make_message_data(
+            text=f'<@{admin_id}> Следующие файлы превышают допустимый размер:',
+            embeds=[{'description': embed_description}]
+        )
+
+        response: bool = await self.send_message(session, oversized_files_message_data)
+        if not response:
+            self.status_changed.emit(f'Ошибка при отправке сообщения администратору')
+            self.logger.error('Ошибка при отправке сообщения администратору!')
+
+
+    def make_message_data(self, text: str, embeds: list = None, opened_file = None):
+        """Создаёт и возвращает данные сообщения в формате JSON.\n
+        Поддерживает добавление Embeds и файлов.
+
+        Parameters
+        ----------
+        text : str
+            текст сообщения
+        embeds : list
+            эмбеды
+        opened_file
+            содержит считанный файл
+        """
+
+        message_data = {'content': text}
+        if embeds:
+            message_data['embeds'] = embeds
+        if opened_file:
+            message_data['file'] = opened_file
+
+        return message_data
+
+
     def read_files_hash(self) -> dict:
         """Считывает хэш файлов из файла в формате JSON."""
+
         self.logger.info('Чтение хэша файлов...')
 
         try:
@@ -201,6 +261,7 @@ class SenderThread(QThread):
 
     def save_files_hash(self):
         """Записывает хэш файлов в файл формата JSON."""
+
         self.logger.info('Сохранение хэша файлов...')
 
         try:
@@ -213,6 +274,7 @@ class SenderThread(QThread):
 
     def get_all_files(self) -> list[str]:
         """Возвращает все файлы из указанной в конфигруации папке."""
+
         search_path = self.user_config['search_folder']
         files: list[str] = []
 
@@ -225,6 +287,7 @@ class SenderThread(QThread):
 
     def get_files_with_prefix(self, files: list[str], prefix: str) -> list[str]:
         """Возвращает файлы с указанным префиксом и расширением .pbo"""
+
         pbo_files: list[str] = []
 
         for file_name in files:
@@ -242,6 +305,7 @@ class SenderThread(QThread):
 
     def get_changed_files(self, files: list[str]) -> list[str]:
         """Находит и возвращает список изменённых файлов."""
+
         SEARCH_FOLDER_PATH = self.user_config['search_folder']
         changed_files: list[str] = []
 
@@ -260,12 +324,14 @@ class SenderThread(QThread):
 
     def is_cur_file_equals_prev(self, current_file_path: str, prev_sha256_hash: str) -> bool:
         """Сверяет файлы используя хэш SHA256."""
+
         current_sha256_hash: str = self.hash_file(current_file_path)
         return current_sha256_hash == prev_sha256_hash
 
 
     def zip_files_for_send(self, files: list[str]) -> list[dict]:
         """Архивирует указанный список файлов в ZIP архивы."""
+
         SEARCH_FOLDER_PATH = self.user_config['search_folder']
         zip_files: list[dict] = []
 
@@ -296,6 +362,7 @@ class SenderThread(QThread):
 
     def zip_file(self, source_path: str, zip_path: str) -> str | None:
         """Создаёт ZIP архив с указанным файлом."""
+
         file_basename = path.basename(source_path)
 
         try:
@@ -315,6 +382,7 @@ class SenderThread(QThread):
 
     def hash_file(self, file_path: str) -> str:
         """Создаёт хэш SHA256 для указанного файла."""
+
         BUF_SIZE = 65536
         sha256_file_hash = sha256()
 
@@ -330,6 +398,7 @@ class SenderThread(QThread):
 
     def delete_temp_zip_files(self, files_data: list[dict]):
         """Удаляет временные ZIP файлы."""
+
         for file_data in files_data:
             try:
                 remove(file_data['path'])
